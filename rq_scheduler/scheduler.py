@@ -326,6 +326,48 @@ class Scheduler(object):
                 self.cancel(job_id)
         return jobs
 
+    def get_job(self, job_id=None, until=None, with_times=False, offset=None, length=None):
+        """
+        Returns a list of job instances that will be queued until the given
+        time. If no 'until' argument is given all jobs are returned.
+
+        If with_times is True, a list of tuples consisting of the job instance
+        and it's scheduled execution time is returned.
+
+        If offset and length are specified, a slice of the list starting at the
+        specified zero-based offset of the specified length will be returned.
+
+        If either of offset or length is specified, then both must be, or
+        an exception will be raised.
+        """
+        def epoch_to_datetime(epoch):
+            return from_unix(float(epoch))
+
+        until = rationalize_until(until)
+        jobs = []
+        job = self.job_class.fetch(job_id, connection=self.connection)
+        sched_time = self.connection.zscore(self.scheduled_jobs_key, job_id)
+        if with_times:
+            jobs.append((job, epoch_to_datetime(sched_time)))
+        else:
+            jobs.append(job)
+
+        # if not with_times:
+        #     job_ids = zip(job_ids, repeat(None))
+        # jobs = []
+        # for job_id, sched_time in job_ids:
+        #     job_id = job_id.decode('utf-8')
+        #     try:
+        #         job = self.job_class.fetch(job_id, connection=self.connection)
+        #         if with_times:
+        #             jobs.append((job, sched_time))
+        #         else:
+        #             jobs.append(job)
+        #     except NoSuchJobError:
+        #         # Delete jobs that aren't there from scheduler
+        #         self.cancel(job_id)
+        return jobs
+
     def get_jobs_to_queue(self, with_times=False):
         """
         Returns a list of job instances that should be queued
